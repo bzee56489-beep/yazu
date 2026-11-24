@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .glass-btn {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .glass-btn:active {
+            transform: scale(0.92);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="snoopyCanvas"></canvas>
+
+    <!-- Floating Text-Free Icon Controls -->
+    <div id="controls" class="fixed bottom-6 right-6 z-10 flex items-center gap-3">
+        <!-- Theme Toggle Button -->
+        <button id="btnTheme" class="glass-btn w-12 h-12 rounded-full flex items-center justify-center border shadow-lg focus:outline-none">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
+                <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+                <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
+                <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+            </svg>
+        </button>
+
+        <!-- Sound Toggle Button -->
+        <button id="btnAudio" class="glass-btn w-12 h-12 rounded-full flex items-center justify-center border shadow-lg focus:outline-none">
+            <svg id="iconMuted" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+                <line x1="23" y1="9" x2="17" y2="15"/>
+                <line x1="17" y1="9" x2="23" y2="15"/>
+            </svg>
+            <svg id="iconUnmuted" class="w-5 h-5 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+        </button>
+
+        <!-- Joy Burst / Replay Button -->
+        <button id="btnJoy" class="glass-btn w-12 h-12 rounded-full flex items-center justify-center border shadow-lg focus:outline-none">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+        </button>
+    </div>
+
+    <script>
+        (() => {
+            const canvas = document.getElementById('snoopyCanvas');
+            const ctx = canvas.getContext('2d');
+
+            let width = window.innerWidth;
+            let height = window.innerHeight;
+            let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+            // Three charming classic comic-inspired themes
+            const THEMES = [
+                {
+                    // 0: Soft Sky Meadow Day
+                    bgInner: '#f0f9ff',
+                    bgOuter: '#bae6fd',
+                    groundTint: 'rgba(134, 239, 172, 0.26)',
+                    aura: 'rgba(255, 255, 255, 0.88)',
+                    shadow: 'rgba(30, 80, 120, 0.18)',
+                    heartColors: ['#f43f5e', '#ec4899', '#fb7185'],
+                    noteColors: ['#0284c7', '#6366f1', '#f59e0b'],
+                    sparkleColor: '#38bdf8',
+                    cloudOpacity: 0.72,
+                    starOpacity: 0,
+                    btnBg: 'rgba(255, 255, 255, 0.75)',
+                    btnBorder: 'rgba(26, 29, 36, 0.16)',
+                    btnText: '#1A1D24'
+                },
+                {
+                    // 1: Warm Sunset Pastel
+                    bgInner: '#fffbeb',
+                    bgOuter: '#fed7aa',
+                    groundTint: 'rgba(253, 186, 116, 0.25)',
+                    aura: 'rgba(255, 255, 255, 0.86)',
+                    shadow: 'rgba(160, 95, 40, 0.18)',
+                    heartColors: ['#e63946', '#f43f5e', '#fb7185'],
+                    noteColors: ['#d97706', '#e11d48', '#7c3aed'],
+                    sparkleColor: '#f59e0b',
+                    cloudOpacity: 0.55,
+                    starOpacity: 0,
+                    btnBg: 'rgba(255, 255, 255, 0.75)',
+                    btnBorder: 'rgba(26, 29, 36, 0.16)',
+                    btnText: '#1A1D24'
+                },
+                {
+                    // 2: Cozy Starry Doghouse Night
+                    bgInner: '#1e293b',
+                    bgOuter: '#090d16',
+                    groundTint: 'rgba(30, 41, 59, 0.45)',
+                    aura: 'rgba(255, 255, 255, 0.12)',
+                    shadow: 'rgba(0, 0, 0, 0.5)',
+                    heartColors: ['#fb7185', '#f43f5e', '#fda4af'],
+                    noteColors: ['#38bdf8', '#fde047', '#c084fc'],
+                    sparkleColor: '#fde047',
+                    cloudOpacity: 0.08,
+                    starOpacity: 0.88,
+                    btnBg: 'rgba(255, 255, 255, 0.12)',
+                    btnBorder: 'rgba(255, 255, 255, 0.22)',
+                    btnText: '#f8fafc'
+                }
+            ];
+
+            let currentThemeIndex = 0;
+
+            // Gentle Warm Marimba / Woodblock Chime Synthesizer (Muted by default)
+            class MarimbaAudio {
+                constructor() {
+                    this.ctx = null;
+                    this.enabled = false;
+                    // Cheerful major pentatonic notes
+                    this.notes = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
+                }
+
+                toggle() {
+                    this.enabled = !this.enabled;
+                    if (this.enabled && !this.ctx) {
+                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (AudioCtx) this.ctx = new AudioCtx();
+                    }
+                    if (this.enabled && this.ctx && this.ctx.state === 'suspended') {
+                        this.ctx.resume();
+                    }
+                    if (this.enabled) {
+                        this.playHappyChord();
+                    }
+                    return this.enabled;
+                }
+
+                playNote(freq, delay = 0, gainVal = 0.075) {
+                    if (!this.enabled || !this.ctx) return;
+                    try {
+                        const t = this.ctx.currentTime + delay;
+                        const osc = this.ctx.createOscillator();
+                        const overtone = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, t);
+
+                        overtone.type = 'triangle';
+                        overtone.frequency.setValueAtTime(freq * 2.98, t);
+
+                        const overtoneGain = this.ctx.createGain();
+                        overtoneGain.gain.setValueAtTime(0.12, t);
+                        overtoneGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+                        gain.gain.setValueAtTime(0.0001, t);
+                        gain.gain.exponentialRampToValueAtTime(gainVal, t + 0.015);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+
+                        osc.connect(gain);
+                        overtone.connect(overtoneGain);
+                        overtoneGain.connect(gain);
+                        gain.connect(this.ctx.destination);
+
+                        osc.start(t);
+                        overtone.start(t);
+                        osc.stop(t + 0.55);
+                        overtone.stop(t + 0.55);
+                    } catch (e) {}
+                }
+
+                playHappyChord() {
+                    this.playNote(523.25, 0, 0.065);
+                    this.playNote(659.25, 0.065, 0.065);
+                    this.playNote(783.99, 0.13, 0.075);
+                    this.playNote(1046.50, 0.21, 0.065);
+                }
+
+                playBoop() {
+                    const f = this.notes[Math.floor(Math.random() * this.notes.length)];
+                    this.playNote(f, 0, 0.075);
+                    this.playNote(f * 1.25, 0.055, 0.05);
+                }
+            }
+
+            const audio = new MarimbaAudio();
+
+            // Background stars & drifting soft clouds
+            let stars = [];
+            let clouds = [];
+            function initAtmosphere() {
+                stars = [];
+                const starCount = Math.floor((width * height) / 11000);
+                for (let i = 0; i < starCount; i++) {
+                    stars.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height * 0.78,
+                        r: Math.random() * 1.6 + 0.5,
+                        phase: Math.random() * Math.PI * 2,
+                        speed: Math.random() * 0.02 + 0.01
+                    });
+                }
+
+                clouds = [];
+                const cloudCount = Math.max(4, Math.floor(width / 260));
+                for (let i = 0; i < cloudCount; i++) {
+                    clouds.push({
+                        x: Math.random() * width,
+                        y: height * (0.12 + Math.random() * 0.38),
+                        scale: 0.65 + Math.random() * 0.65,
+                        speed: 0.14 + Math.random() * 0.18
+                    });
+                }
+            }
+
+            // Floating Hearts, Vector Music Notes & Sparkles (Zero Text)
+            let particles = [];
+            class Particle {
+                constructor(x, y, type, color) {
+                    this.x = x;
+                    this.y = y;
+                    this.type = type; // 'heart', 'note', or 'sparkle'
+                    this.color = color;
+                    const angle = -Math.PI * 0.5 + (Math.random() - 0.5) * 2.1;
+                    const speed = type === 'sparkle' ? (Math.random() * 3.0 + 1.2) : (Math.random() * 2.3 + 1.6);
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed - 0.7;
+                    this.size = type === 'heart' ? (Math.random() * 9 + 10) : (type === 'note' ? (Math.random() * 6 + 9) : (Math.random() * 5 + 4));
+                    this.life = 1.0;
+                    this.decay = type === 'sparkle' ? (Math.random() * 0.016 + 0.012) : (Math.random() * 0.0085 + 0.0075);
+                    this.wobble = Math.random() * Math.PI * 2;
+                    this.rotation = (Math.random() - 0.5) * 0.45;
+                }
+
+                update() {
+                    this.wobble += 0.065;
+                    this.x += this.vx + Math.sin(this.wobble) * 0.6;
+                    this.y += this.vy;
+                    this.vy *= 0.986;
+                    this.vx *= 0.986;
+                    this.life -= this.decay;
+                }
+
+                draw(ctx) {
+                    if (this.life <= 0) return;
+                    ctx.save();
+                    ctx.globalAlpha = Math.min(1, this.life * 1.4);
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.rotation + Math.sin(this.wobble) * 0.14);
+
+                    const scale = Math.min(1, (1.05 - this.life) * 5) * (0.65 + this.life * 0.35);
+                    ctx.scale(scale, scale);
+
+                    if (this.type === 'heart') {
+                        const s = this.size;
+                        ctx.fillStyle = this.color;
+                        ctx.strokeStyle = '#1A1D24';
+                        ctx.lineWidth = 2;
+                        ctx.lineJoin = 'round';
+
+                        ctx.beginPath();
+                        ctx.moveTo(0, s * 0.35);
+                        ctx.bezierCurveTo(-s * 0.9, -s * 0.35, -s * 0.45, -s * 0.95, 0, -s * 0.42);
+                        ctx.bezierCurveTo(s * 0.45, -s * 0.95, s * 0.9, -s * 0.35, 0, s * 0.35);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+                        ctx.beginPath();
+                        ctx.ellipse(-s * 0.32, -s * 0.42, s * 0.14, s * 0.08, -0.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (this.type === 'note') {
+                        // Pure vector eighth music note icon (no font/text)
+                        const s = this.size;
+                        ctx.fillStyle = this.color;
+                        ctx.strokeStyle = '#1A1D24';
+                        ctx.lineWidth = 2.2;
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+
+                        // Notehead oval
+                        ctx.beginPath();
+                        ctx.ellipse(-s * 0.25, s * 0.45, s * 0.38, s * 0.28, -0.35, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        // Stem & flag
+                        ctx.beginPath();
+                        ctx.moveTo(s * 0.08, s * 0.38);
+                        ctx.lineTo(s * 0.08, -s * 0.65);
+                        ctx.quadraticCurveTo(s * 0.58, -s * 0.45, s * 0.48, -s * 0.05);
+                        ctx.stroke();
+                    } else {
+                        // Four-point cartoon sparkle
+                        const s = this.size;
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        ctx.moveTo(0, -s);
+                        ctx.quadraticCurveTo(0, 0, s, 0);
+                        ctx.quadraticCurveTo(0, 0, 0, s);
+                        ctx.quadraticCurveTo(0, 0, -s, 0);
+                        ctx.quadraticCurveTo(0, 0, 0, -s);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                }
+            }
+
+            // Pointer tracking
+            const pointer = {
+                x: width * 0.5,
+                y: height * 0.5,
+                normX: 0,
+                normY: 0,
+                isNearSnoopy: false
+            };
+
+            // Full-Body Snoopy Character State & Spring Physics
+            const snoopy = {
+                lookX: 0,
+                lookY: 0,
+                velX: 0,
+                velY: 0,
+                earAngle: 0,
+                earVel: 0,
+                tailAngle: 0,
+                tailVel: 0,
+                armAngle: 0,
+                armVel: 0,
+                joyLevel: 0,       // 0 = warm smile, 1 = extra-wide beaming happy dance
+                joyTimer: 0,
+                hopY: 0,
+                hopVel: 0,
+                hopSquash: 0,
+                blinkTimer: 160,
+                isBlinking: false
+            };
+
+            function triggerJoyBurst(originX, originY) {
+                snoopy.joyTimer = 115; // ~1.9 seconds of happy dance & hop
+                snoopy.earVel += 0.25;
+                snoopy.tailVel += 0.38;
+                snoopy.armVel += 0.32;
+                snoopy.hopVel = -11.5;
+
+                const theme = THEMES[currentThemeIndex];
+                const cx = width * 0.5;
+                const cy = height * 0.5;
+                const spawnX = originX !== undefined ? originX : cx;
+                const spawnY = originY !== undefined ? originY : cy - 40;
+
+                // Spawn cartoon hearts
+                for (let i = 0; i < 7; i++) {
+                    const color = theme.heartColors[i % theme.heartColors.length];
+                    const offsetX = (Math.random() - 0.5) * 180;
+                    const offsetY = (Math.random() - 0.5) * 130;
+                    particles.push(new Particle(spawnX + offsetX, spawnY + offsetY, 'heart', color));
+                }
+
+                // Spawn pure vector music notes
+                for (let i = 0; i < 5; i++) {
+                    const color = theme.noteColors[i % theme.noteColors.length];
+                    const offsetX = (Math.random() - 0.5) * 190;
+                    const offsetY = (Math.random() - 0.5) * 120;
+                    particles.push(new Particle(cx + offsetX, cy - 30 + offsetY, 'note', color));
+                }
+
+                // Spawn golden/sky sparkles
+                for (let i = 0; i < 9; i++) {
+                    const offsetX = (Math.random() - 0.5) * 210;
+                    const offsetY = (Math.random() - 0.5) * 170;
+                    particles.push(new Particle(cx + offsetX, cy + offsetY, 'sparkle', theme.sparkleColor));
+                }
+            }
+
+            function resizeCanvas() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                dpr = Math.min(window.devicePixelRatio || 1, 2);
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                initAtmosphere();
+            }
+
+            function updatePhysics(time) {
+                // Spring physics toward pointer
+                const targetX = pointer.normX;
+                const targetY = pointer.normY;
+
+                snoopy.velX = (snoopy.velX + (targetX - snoopy.lookX) * 0.08) * 0.82;
+                snoopy.velY = (snoopy.velY + (targetY - snoopy.lookY) * 0.08) * 0.82;
+                snoopy.lookX += snoopy.velX;
+                snoopy.lookY += snoopy.velY;
+
+                // Check if pointer is hovering near Snoopy for enthusiastic tail wag
+                const distFromCenter = Math.hypot(pointer.x - width * 0.5, pointer.y - height * 0.5);
+                pointer.isNearSnoopy = distFromCenter < Math.min(width, height) * 0.28;
+
+                // Ear spring physics
+                const targetEar = -snoopy.lookX * 0.16 + Math.sin(time * 0.0026) * 0.04;
+                snoopy.earVel = (snoopy.earVel + (targetEar - snoopy.earAngle) * 0.09) * 0.84;
+                snoopy.earAngle += snoopy.earVel;
+
+                // Tail spring physics (wags faster when hovered or in happy dance)
+                const tailWagSpeed = snoopy.joyTimer > 0 ? 0.042 : (pointer.isNearSnoopy ? 0.03 : 0.009);
+                const tailWagAmp = snoopy.joyTimer > 0 ? 0.34 : (pointer.isNearSnoopy ? 0.22 : 0.07);
+                const targetTail = Math.sin(time * tailWagSpeed) * tailWagAmp;
+                snoopy.tailVel = (snoopy.tailVel + (targetTail - snoopy.tailAngle) * 0.14) * 0.82;
+                snoopy.tailAngle += snoopy.tailVel;
+
+                // Hop & Squash-Stretch physics
+                if (snoopy.hopY < 0 || snoopy.hopVel < 0) {
+                    snoopy.hopVel += 0.65; // gravity
+                    snoopy.hopY += snoopy.hopVel;
+                    if (snoopy.hopY >= 0) {
+                        snoopy.hopY = 0;
+                        snoopy.hopVel = 0;
+                        snoopy.hopSquash = 0.14; // landing squash
+                    }
+                }
+                snoopy.hopSquash *= 0.82;
+
+                // Joy expression & celebration arms timer
+                if (snoopy.joyTimer > 0) {
+                    snoopy.joyTimer--;
+                    snoopy.joyLevel += (1 - snoopy.joyLevel) * 0.15;
+                    snoopy.earVel += Math.sin(time * 0.032) * 0.022;
+                } else {
+                    snoopy.joyLevel += (0 - snoopy.joyLevel) * 0.08;
+                }
+
+                // Arm spring angle (0 = relaxed cheerful pose, 1 = celebratory raised wave)
+                const targetArm = snoopy.joyLevel;
+                snoopy.armVel = (snoopy.armVel + (targetArm - snoopy.armAngle) * 0.12) * 0.8;
+                snoopy.armAngle += snoopy.armVel;
+
+                // Natural eye blink cycle when in normal happy state
+                if (snoopy.joyLevel < 0.3) {
+                    snoopy.blinkTimer--;
+                    if (snoopy.blinkTimer <= 0) {
+                        snoopy.isBlinking = true;
+                        if (snoopy.blinkTimer <= -8) {
+                            snoopy.isBlinking = false;
+                            snoopy.blinkTimer = Math.floor(Math.random() * 140) + 130;
+                        }
+                    }
+                } else {
+                    snoopy.isBlinking = false;
+                }
+            }
+
+            /**
+             * Draws Snoopy's complete full cartoon body in classic comic ink-line style (#1A1D24)
+             * Centered and responsively scaled across all viewports.
+             */
+            function drawFullBodySnoopy(time) {
+                const theme = THEMES[currentThemeIndex];
+                const cx = width * 0.5;
+                const cy = height * 0.52;
+
+                // Scale so the entire full-body illustration fits comfortably from head to big feet
+                const baseDim = Math.min(width, height);
+                const scale = Math.max(0.46, Math.min(1.12, baseDim / 540));
+
+                const idleBreath = Math.sin(time * 0.0028);
+                const bodySway = snoopy.lookX * 0.045 + Math.sin(time * 0.002) * 0.015;
+                const joy = snoopy.joyLevel;
+
+                const inkColor = '#1A1D24';
+                const outlineWidth = 4.6;
+
+                ctx.save();
+                ctx.translate(cx + snoopy.lookX * 8, cy);
+                ctx.scale(scale, scale);
+
+                // --------------------------------------------------------
+                // 1. SOFT GROUNDING ELLIPTICAL SHADOW BENEATH FEET
+                // --------------------------------------------------------
+                ctx.save();
+                const shadowScale = Math.max(0.65, 1 + snoopy.hopY * 0.004);
+                ctx.translate(4, 212);
+                ctx.scale(shadowScale, shadowScale);
+                ctx.fillStyle = theme.shadow;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 118, 17, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // Apply vertical hop & squash-and-stretch anchored near feet (y = 205)
+                ctx.translate(0, 205 + snoopy.hopY);
+                const stretchY = 1 - snoopy.hopSquash + (-snoopy.hopY * 0.0012);
+                const stretchX = 1 + snoopy.hopSquash * 0.75 - (-snoopy.hopY * 0.0008);
+                ctx.scale(stretchX, stretchY);
+                ctx.translate(0, -205);
+
+                // --------------------------------------------------------
+                // 2. CUTE WAGGING BEAGLE TAIL WITH BLACK TIP (Behind torso)
+                // --------------------------------------------------------
+                ctx.save();
+                ctx.translate(-46, 112);
+                ctx.rotate(-0.38 + snoopy.tailAngle);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = outlineWidth;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                // Curved tail silhouette
+                ctx.beginPath();
+                ctx.moveTo(0, 8);
+                ctx.bezierCurveTo(-24, -4, -38, -28, -28, -46);
+                ctx.bezierCurveTo(-20, -56, -6, -50, -4, -36);
+                ctx.bezierCurveTo(-2, -18, 6, -4, 10, 4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Black tip on tail
+                ctx.save();
+                ctx.clip();
+                ctx.fillStyle = inkColor;
+                ctx.beginPath();
+                ctx.ellipse(-20, -42, 16, 15, -0.4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                ctx.stroke();
+                ctx.restore();
+
+                // --------------------------------------------------------
+                // 3. BACK/LEFT LEG & BIG CARTOON BEAGLE FOOT
+                // --------------------------------------------------------
+                const backLegLift = joy > 0.2 ? Math.max(0, Math.sin(time * 0.022)) * 12 : 0;
+                ctx.save();
+                ctx.translate(22, 138 - backLegLift);
+                ctx.rotate(joy * 0.08);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = outlineWidth;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                // Leg column + oversized iconic beagle foot extending right
+                ctx.beginPath();
+                ctx.moveTo(-14, 0);
+                ctx.lineTo(-14, 48);
+                // Heel curve
+                ctx.bezierCurveTo(-18, 64, -8, 70, 12, 70);
+                // Long flat sole
+                ctx.lineTo(54, 70);
+                // Rounded big toes front
+                ctx.bezierCurveTo(72, 70, 74, 46, 52, 43);
+                // Top of foot instep back to shin
+                ctx.quadraticCurveTo(24, 40, 14, 34);
+                ctx.lineTo(14, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Classic cartoon toe lines on back foot
+                ctx.lineWidth = 3.4;
+                ctx.beginPath();
+                ctx.moveTo(56, 53);
+                ctx.lineTo(66, 54);
+                ctx.moveTo(54, 62);
+                ctx.lineTo(65, 62);
+                ctx.stroke();
+                ctx.restore();
+
+                // --------------------------------------------------------
+                // 4. BACK/RIGHT ARM (Behind torso, waves in celebration)
+                // --------------------------------------------------------
+                ctx.save();
+                ctx.translate(24, 34);
+                const backArmWave = Math.sin(time * 0.024 + 1.2) * 0.22 * snoopy.armAngle;
+                const backArmRot = -0.35 - snoopy.armAngle * 1.45 + backArmWave;
+                ctx.rotate(backArmRot);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = outlineWidth;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                ctx.beginPath();
+                ctx.moveTo(-10, -6);
+                ctx.bezierCurveTo(-14, 24, -12, 54, -4, 68);
+                ctx.bezierCurveTo(4, 78, 18, 74, 18, 60);
+                ctx.bezierCurveTo(18, 42, 14, 16, 10, -6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Little black paw finger lines
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(4, 64);
+                ctx.lineTo(4, 72);
+                ctx.moveTo(10, 62);
+                ctx.lineTo(11, 70);
+                ctx.stroke();
+                ctx.restore();
+
+                // --------------------------------------------------------
+                // 5. PEAR-SHAPED WHITE BEAGLE TORSO & CLASSIC BACK SPOT
+                // --------------------------------------------------------
+                ctx.save();
+                ctx.translate(0, 82);
+                ctx.rotate(bodySway);
+                const breathScaleX = 1 + idleBreath * 0.016;
+                const breathScaleY = 1 - idleBreath * 0.012;
+                ctx.scale(breathScaleX, breathScaleY);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = outlineWidth;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                // Iconic pear-shaped Peanuts torso
+                ctx.beginPath();
+                ctx.moveTo(-26, -64);
+                // Chest / tummy curve on right
+                ctx.bezierCurveTo(26, -62, 46, -12, 42, 34);
+                // Rounded bottom belly
+                ctx.bezierCurveTo(38, 68, -36, 70, -46, 36);
+                // Curved back on left
+                ctx.bezierCurveTo(-56, -4, -44, -56, -26, -64);
+                ctx.closePath();
+                ctx.fill();
+
+                // Subtle belly shading & classic black beagle spot on his back
+                ctx.save();
+                ctx.clip();
+                ctx.fillStyle = 'rgba(226, 232, 240, 0.42)';
+                ctx.beginPath();
+                ctx.ellipse(2, 56, 52, 22, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Classic black beagle spot on upper back
+                ctx.fillStyle = inkColor;
+                ctx.beginPath();
+                ctx.ellipse(-44, -8, 17, 25, 0.22, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                ctx.stroke();
+
+                // --------------------------------------------------------
+                // 6. CLASSIC RED COLLAR (#E63946) AROUND NECK
+                // --------------------------------------------------------
+                ctx.fillStyle = '#E63946';
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = outlineWidth;
+                ctx.beginPath();
+                ctx.moveTo(-29, -68);
+                ctx.quadraticCurveTo(0, -58, 28, -68);
+                ctx.lineTo(31, -53);
+                ctx.quadraticCurveTo(0, -43, -32, -53);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Tiny gold collar tag
+                ctx.fillStyle = '#facc15';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(14, -46, 6.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore(); // End Torso
+
+                // --------------------------------------------------------
+                // 7. FRONT/LEFT LEG & BIG CARTOON BEAGLE FOOT
+                // --------------------------------------------------------
+                const frontLegLift = joy > 0.2 ? Math.max(0, Math.sin(time * 0.022 + Math.PI)) * 14 : 0;
+                ctx.save();
+                ctx.translate(-14, 136 - frontLegLift);
+                ctx.rotate(-joy * 0.06);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = outlineWidth;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                ctx.beginPath();
+                ctx.moveTo(-16, 0);
+                ctx.lineTo(-16, 50);
+                // Rounded heel
+                ctx.bezierCurveTo(-22, 68, -10, 74, 12, 74);
+                // Long flat sole
+                ctx.lineTo(56, 74);
+                // Big rounded front toes
+                ctx.bezierCurveTo(75, 74, 77, 48, 54, 45);
+                // Instep curve back up to leg
+                ctx.quadraticCurveTo(24, 42, 15, 34);
+                ctx.lineTo(15, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Classic three-toe ink lines on front foot
+                ctx.lineWidth = 3.4;
+                ctx.beginPath();
+                ctx.moveTo(57, 56);
+                ctx.lineTo(68, 57);
+                ctx.moveTo(55, 65);
+                ctx.lineTo(67, 65);
+                ctx.stroke();
+                ctx.restore();
+
+                // --------------------------------------------------------
+                // 8. FRONT/LEFT ARM & PAW (Rests happily or waves joyfully)
+                // --------------------------------------------------------
+                ctx.save();
+                ctx.translate(-18, 36);
+                const frontArmWave = Math.sin(time * 0.024) * 0.24 * snoopy.armAngle;
+                const frontArmRot = 0.22 + snoopy.armAngle * 1.95 + frontArmWave + idleBreath * 0.03;
+                ctx.rotate(frontArmRot);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = outlineWidth;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                ctx.beginPath();
+                ctx.moveTo(-11, -6);
+                ctx.bezierCurveTo(-15, 24, -12, 56, -4, 70);
+                ctx.bezierCurveTo(4, 80, 19, 76, 19, 62);
+                ctx.bezierCurveTo(19, 44, 15, 16, 11, -6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Paw finger lines
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(3, 66);
+                ctx.lineTo(3, 74);
+                ctx.moveTo(10, 64);
+                ctx.lineTo(11, 72);
+                ctx.stroke();
+                ctx.restore();
+
+                // --------------------------------------------------------
+                // 9. ICONIC SMILING SNOOPY HEAD, SNOUT, NOSE, EYES & FLOPPY EAR
+                // --------------------------------------------------------
+                const headTilt = snoopy.lookX * 0.09 + bodySway * 0.6;
+                const px = snoopy.lookX * 12;
+                const py = snoopy.lookY * 9;
+
+                ctx.save();
+                ctx.translate(px * 0.4, -56 + idleBreath * 1.8 + py * 0.4);
+                ctx.rotate(headTilt);
+
+                // White Beagle Head + Rounded Snout Contour
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = outlineWidth;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                ctx.beginPath();
+                // Top of cranium
+                ctx.moveTo(-30, -96);
+                // Forehead curve sloping down to snout bridge
+                ctx.bezierCurveTo(18, -98, 38, -70, 45, -40);
+                // Upper snout extending right
+                ctx.bezierCurveTo(80, -45, 120, -28, 122, 4);
+                // Front tip of snout curving down into rounded muzzle
+                ctx.bezierCurveTo(124, 37, 86, 57, 43, 57);
+                // Lower jaw / chin curving back toward collar
+                ctx.bezierCurveTo(18, 76, -26, 79, -53, 60);
+                // Back of head / cheek curving up to cranium
+                ctx.bezierCurveTo(-88, 35, -90, -35, -68, -73);
+                ctx.bezierCurveTo(-56, -90, -43, -95, -30, -96);
+                ctx.closePath();
+                ctx.fill();
+
+                // Subtle volume shading under snout
+                ctx.save();
+                ctx.clip();
+                ctx.fillStyle = 'rgba(226, 232, 240, 0.42)';
+                ctx.beginPath();
+                ctx.ellipse(25, 62, 92, 26, -0.08, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                ctx.stroke();
+                ctx.restore();
+
+                // Expressive Eyes & Eyebrows
+                ctx.save();
+                ctx.translate(px * 0.45, py * 0.45);
+                ctx.strokeStyle = inkColor;
+                ctx.fillStyle = inkColor;
+                ctx.lineCap = 'round';
+
+                if (joy > 0.25 || snoopy.isBlinking) {
+                    // Happy curved closed cartoon eyes (^ ^)
+                    ctx.lineWidth = 4.0;
+                    ctx.beginPath();
+                    ctx.arc(-7, -46, 9, Math.PI * 1.12, Math.PI * 1.88);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.arc(20, -43, 10, Math.PI * 1.12, Math.PI * 1.88);
+                    ctx.stroke();
+                } else {
+                    // Classic cheerful vertical oval eyes
+                    ctx.beginPath();
+                    ctx.ellipse(-7, -46, 4.4, 8.8, -0.06, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.ellipse(19, -43, 4.8, 9.4, -0.06, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Tiny crisp eye catchlights
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(-8.2, -49.5, 1.5, 0, Math.PI * 2);
+                    ctx.arc(17.8, -46.5, 1.6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Expressive floating comic eyebrows
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = 3.2;
+                const browLift = joy * 6;
+                ctx.beginPath();
+                ctx.arc(-10, -63 - browLift, 9, Math.PI * 1.2, Math.PI * 1.75);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(20, -60 - browLift, 10, Math.PI * 1.25, Math.PI * 1.8);
+                ctx.stroke();
+                ctx.restore();
+
+                // Broad Happy Curved Smile & Rosy Cheek Blush
+                ctx.save();
+                ctx.translate(px * 0.38, py * 0.38);
+
+                const blushAlpha = 0.22 + joy * 0.35;
+                ctx.fillStyle = `rgba(251, 113, 133, ${blushAlpha.toFixed(2)})`;
+                ctx.beginPath();
+                ctx.ellipse(13, 10, 15 + joy * 3.5, 9 + joy * 2, -0.1, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = 4.0;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                if (joy > 0.38) {
+                    // Wide open joyful happy-dance grin!
+                    ctx.fillStyle = inkColor;
+                    ctx.beginPath();
+                    ctx.moveTo(12, 18);
+                    ctx.quadraticCurveTo(56, 23, 103, 10);
+                    ctx.bezierCurveTo(96, 47, 38, 52, 12, 18);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Cute pink tongue inside open smile
+                    ctx.save();
+                    ctx.clip();
+                    ctx.fillStyle = '#fb7185';
+                    ctx.beginPath();
+                    ctx.ellipse(56, 40, 22, 12, -0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+
+                    // Smile dimple crease
+                    ctx.beginPath();
+                    ctx.arc(9, 17, 6.8, Math.PI * 0.65, Math.PI * 1.35);
+                    ctx.stroke();
+                } else {
+                    // Classic warm curved Snoopy smile
+                    ctx.beginPath();
+                    ctx.moveTo(12, 18);
+                    ctx.bezierCurveTo(38, 37, 82, 33, 106, 12);
+                    ctx.stroke();
+
+                    // Smile corner dimple
+                    ctx.lineWidth = 3.3;
+                    ctx.beginPath();
+                    ctx.arc(9, 17, 7.2, Math.PI * 0.68, Math.PI * 1.32);
+                    ctx.stroke();
+                }
+                ctx.restore();
+
+                // Shiny Black Nose at Snout Tip
+                ctx.save();
+                ctx.translate(px * 0.6, py * 0.6);
+                ctx.fillStyle = inkColor;
+                ctx.beginPath();
+                ctx.ellipse(112, -12, 18.5, 14.2, -0.18, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Crisp white comic shine highlight on nose
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.ellipse(107, -18, 6.2, 3.2, -0.28, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // Signature Floppy Black Ear on Side of Head (Spring inertia)
+                ctx.save();
+                ctx.translate(-46 + px * 0.12, -28 + py * 0.12);
+                ctx.rotate(snoopy.earAngle);
+
+                ctx.fillStyle = inkColor;
+                ctx.strokeStyle = inkColor;
+                ctx.lineWidth = 3.6;
+                ctx.lineJoin = 'round';
+
+                ctx.beginPath();
+                ctx.moveTo(0, -8);
+                ctx.bezierCurveTo(18, -5, 22, 38, 10, 77);
+                ctx.bezierCurveTo(2, 102, -27, 100, -32, 72);
+                ctx.bezierCurveTo(-37, 37, -18, -12, 0, -8);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Subtle white comic highlight curve inside the black ear
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
+                ctx.lineWidth = 2.6;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(-15, 18);
+                ctx.quadraticCurveTo(-20, 48, -12, 74);
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.restore(); // End Head
+                ctx.restore(); // End Full Body
+            }
+
+            function drawCloud(ctx, x, y, scale, opacity) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(scale, scale);
+                ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(0, 0, 28, 0, Math.PI * 2);
+                ctx.arc(26, -8, 34, 0, Math.PI * 2);
+                ctx.arc(58, -4, 28, 0, Math.PI * 2);
+                ctx.arc(82, 6, 22, 0, Math.PI * 2);
+                ctx.arc(-24, 6, 22, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            function drawBackground(time) {
+                const theme = THEMES[currentThemeIndex];
+                const cx = width * 0.5;
+                const cy = height * 0.5;
+                const maxR = Math.max(width, height) * 0.8;
+
+                // Sky / Backdrop radial gradient
+                const bgGrad = ctx.createRadialGradient(cx, cy * 0.85, 20, cx, cy, maxR);
+                bgGrad.addColorStop(0, theme.bgInner);
+                bgGrad.addColorStop(1, theme.bgOuter);
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, width, height);
+
+                // Twinkling stars in night mode
+                if (theme.starOpacity > 0) {
+                    for (const s of stars) {
+                        s.phase += s.speed;
+                        const alpha = (0.3 + 0.7 * Math.abs(Math.sin(s.phase))) * theme.starOpacity;
+                        ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(3)})`;
+                        ctx.beginPath();
+                        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                // Soft drifting clouds
+                if (theme.cloudOpacity > 0) {
+                    for (const c of clouds) {
+                        c.x += c.speed;
+                        if (c.x - 120 > width) c.x = -120;
+                        drawCloud(ctx, c.x, c.y, c.scale, theme.cloudOpacity);
+                    }
+                }
+
+                // Soft curved meadow horizon ground plane
+                const horizonY = height * 0.72;
+                const groundGrad = ctx.createLinearGradient(0, horizonY, 0, height);
+                groundGrad.addColorStop(0, theme.groundTint);
+                groundGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = groundGrad;
+                ctx.beginPath();
+                ctx.moveTo(0, horizonY + 18);
+                ctx.quadraticCurveTo(width * 0.5, horizonY - 22, width, horizonY + 18);
+                ctx.lineTo(width, height);
+                ctx.lineTo(0, height);
+                ctx.closePath();
+                ctx.fill();
+
+                // Soft spotlight aura behind Snoopy
+                const auraR = Math.min(width, height) * 0.48;
+                const aura = ctx.createRadialGradient(cx, cy, 10, cx, cy, auraR);
+                aura.addColorStop(0, theme.aura);
+                aura.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = aura;
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            function animate(time) {
+                updatePhysics(time);
+                drawBackground(time);
+                drawFullBodySnoopy(time);
+
+                // Draw & update floating hearts, vector music notes & sparkles
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].update();
+                    particles[i].draw(ctx);
+                    if (particles[i].life <= 0) {
+                        particles.splice(i, 1);
+                    }
+                }
+
+                requestAnimationFrame(animate);
+            }
+
+            // Pointer / Touch Interactions
+            function updatePointer(clientX, clientY) {
+                pointer.x = clientX;
+                pointer.y = clientY;
+                pointer.normX = ((clientX / width) - 0.5) * 2;
+                pointer.normY = ((clientY / height) - 0.5) * 2;
+            }
+
+            canvas.addEventListener('pointermove', (e) => {
+                updatePointer(e.clientX, e.clientY);
+            });
+
+            canvas.addEventListener('pointerdown', (e) => {
+                updatePointer(e.clientX, e.clientY);
+                triggerJoyBurst(e.clientX, e.clientY);
+                audio.playBoop();
+            });
+
+            // Floating Icon Controls
+            const btnTheme = document.getElementById('btnTheme');
+            const btnAudio = document.getElementById('btnAudio');
+            const btnJoy = document.getElementById('btnJoy');
+            const iconMuted = document.getElementById('iconMuted');
+            const iconUnmuted = document.getElementById('iconUnmuted');
+
+            function syncButtonStyles() {
+                const theme = THEMES[currentThemeIndex];
+                [btnTheme, btnAudio, btnJoy].forEach(btn => {
+                    btn.style.backgroundColor = theme.btnBg;
+                    btn.style.borderColor = theme.btnBorder;
+                    btn.style.color = theme.btnText;
+                });
+            }
+
+            btnTheme.addEventListener('click', (e) => {
+                e.stopPropagation();
+                currentThemeIndex = (currentThemeIndex + 1) % THEMES.length;
+                syncButtonStyles();
+                triggerJoyBurst();
+                audio.playBoop();
+            });
+
+            btnAudio.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isEnabled = audio.toggle();
+                if (isEnabled) {
+                    iconMuted.classList.add('hidden');
+                    iconUnmuted.classList.remove('hidden');
+                    triggerJoyBurst();
+                } else {
+                    iconUnmuted.classList.add('hidden');
+                    iconMuted.classList.remove('hidden');
+                }
+            });
+
+            btnJoy.addEventListener('click', (e) => {
+                e.stopPropagation();
+                triggerJoyBurst();
+                audio.playHappyChord();
+            });
+
+            window.addEventListener('resize', resizeCanvas);
+
+            window.onload = function () {
+                resizeCanvas();
+                syncButtonStyles();
+                // Welcome heart burst on load
+                setTimeout(() => triggerJoyBurst(), 250);
+                requestAnimationFrame(animate);
+            };
+        })();
+    </script>
+</body>
+</html>
